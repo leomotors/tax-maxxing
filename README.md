@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tax-Maxxing
 
-## Getting Started
+เครื่องมือช่วย**ลดภาษี**บุคคลธรรมดาสำหรับคนไทย (static Next.js)
 
-First, run the development server:
+ข้อมูลเก็บในเบราว์เซอร์ผ่าน `localStorage` และสำรองด้วยไฟล์ JSON — ไม่มีเซิร์ฟเวอร์
+
+## Features
+
+- กรอกเงินได้พึงประเมิน มาตรา 40(1), 40(2), 40(4) หลายแหล่งต่อประเภท
+- 40(4) เลือกภาษีสุดท้าย / รวมคำนวณ / อัตโนมัติ (ระบบแนะนำให้)
+- ค่าลดหย่อนส่วนตัว ประกัน RMF ThaiESG บริจาค
+- แนะนำวงเงินลงทุน/บริจาคเพิ่มว่าจะลดภาษีได้เท่าไร
+- ตารางสรุปใกล้เคียง ภ.ง.ด.90/91
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
+pnpm check
+pnpm test
+pnpm build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Dev server: [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Build เป็น static export ที่โฟลเดอร์ `out/`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Release
 
-## Learn More
+ใช้รูปแบบ changelog แบบ portfolio-tracking:
 
-To learn more about Next.js, take a look at the following resources:
+- รายการใหม่ใส่ใต้ `## [minor]` (หรือ `[patch]` / `[major]`) ใน `CHANGELOG.md`
+- เมื่อ release ให้เลื่อนรายการไปเป็น `## [x.y.z] - YYYY-MM-DD` และอัปเดต `version` ใน `package.json`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- ปีภาษีเริ่มต้น: 2568
+- 40(3), 40(5)–40(8) ยังเป็น placeholder
+- นำเข้าเงินปันผลไทยจาก `.xlsx` ยังเป็น placeholder บน UI
+- เป็นประมาณการ ไม่ใช่คำปรึกษาทางภาษี

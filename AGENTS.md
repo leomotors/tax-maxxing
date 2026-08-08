@@ -1,9 +1,26 @@
-<!-- BEGIN:nextjs-agent-rules -->
+# AGENTS
 
-# This is NOT the Next.js you know
+Tax-Maxxing is a static Next.js app (Thai UI) for personal income tax estimation.
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+## Stack
 
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+- Next.js App Router, `output: "export"`
+- Tailwind CSS v4, light theme only
+- Client-side state in `localStorage` + JSON download/upload
+- Tax engine in `src/lib/tax/`
 
-<!-- END:nextjs-agent-rules -->
+## Conventions
+
+- UI copy is Thai
+- Changelog follows portfolio-tracking style (`CHANGELOG.md` with `[minor]` bucket)
+- Prefer extending the tax engine before adding UI-only special cases
+- Do not add a backend or auth unless explicitly requested
+
+## Commands
+
+```bash
+pnpm dev
+pnpm check
+pnpm test
+pnpm build
+```
