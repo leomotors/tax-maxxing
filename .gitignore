@@ -24,6 +24,14 @@
 .DS_Store
 *.pem
 
+# Personal tax / broker / portfolio exports — never commit
+/private/
+*.personal.*
+*.local.xlsx
+*.local.xls
+*tax-export*.json
+*profile-export*.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

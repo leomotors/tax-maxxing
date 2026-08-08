@@ -36,7 +36,7 @@ describe("classifyDividendHeader", () => {
 });
 
 function buildSyntheticWorkbook(): ArrayBuffer {
-  // Synthetic symbols only — never use real holdings here.
+  // Synthetic fixtures only — never copy real symbols, amounts, or tax IDs.
   const header = [
     "ประเภทหลักทรัพย์",
     "ชื่อย่อหลักทรัพย์",
