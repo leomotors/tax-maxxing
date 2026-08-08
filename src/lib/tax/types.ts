@@ -27,6 +27,16 @@ export interface IncomeSource {
   withheld: number;
 }
 
+/** Footnote per symbol after Excel import — totals remain editable. */
+export interface DividendImportBreakdownRow {
+  symbol: string;
+  dividend: number;
+  withheld: number;
+  taxCredit: number;
+  /** อัตราภาษีนิติบุคคลของกิจการ / แหล่งที่มาในไฟล์ เช่น "20%", "ไม่มีเครดิต (กำไรทางบัญชี)" */
+  citRates: string[];
+}
+
 export interface Income404Source {
   id: string;
   label: string;
@@ -36,6 +46,8 @@ export interface Income404Source {
   /** เครดิตภาษี (เฉพาะเงินปันผลไทย) */
   taxCredit: number;
   treatment: TaxTreatment;
+  /** รายละเอียดรายหุ้นจากการนำเข้า Excel (footnote) */
+  importBreakdown?: DividendImportBreakdownRow[];
 }
 
 export interface PersonalDeductions {

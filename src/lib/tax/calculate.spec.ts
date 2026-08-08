@@ -213,4 +213,44 @@ describe("calculateTax", () => {
     expect(result.decisions404[0].recommended).toBe("include");
     expect(result.decisions404[0].applied).toBe("include");
   });
+
+  it("recommends thai dividend by taxPayable, not totalTax (credit refund)", () => {
+    const profile = emptyProfile();
+    // เงินได้ปานกลาง + เครดิตภาษีสูง: totalTax ของ final ต่ำกว่า
+    // แต่ taxPayable ของ include ดีกว่าเพราะใช้เครดิตได้
+    profile.income401 = [
+      { id: "1", label: "Job", amount: 400_000, withheld: 0 },
+    ];
+    profile.income404 = [
+      {
+        id: "d1",
+        label: "ปันผล",
+        kind: "thai_dividend",
+        amount: 200_000,
+        withheld: 20_000,
+        taxCredit: 50_000,
+        treatment: "auto",
+      },
+    ];
+
+    const asFinal = emptyProfile();
+    asFinal.income401 = profile.income401;
+    asFinal.income404 = [
+      { ...profile.income404[0], treatment: "final" },
+    ];
+    const asInclude = emptyProfile();
+    asInclude.income401 = profile.income401;
+    asInclude.income404 = [
+      { ...profile.income404[0], treatment: "include" },
+    ];
+
+    const finalR = calculateTax(asFinal);
+    const includeR = calculateTax(asInclude);
+    expect(finalR.totalTax).toBeLessThan(includeR.totalTax);
+    expect(includeR.taxPayable).toBeLessThan(finalR.taxPayable);
+
+    const result = calculateTax(profile);
+    expect(result.decisions404[0].recommended).toBe("include");
+    expect(result.decisions404[0].applied).toBe("include");
+  });
 });

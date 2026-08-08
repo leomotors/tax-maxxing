@@ -15,7 +15,7 @@ export function MaxxingPanel({ breakdown }: { breakdown: TaxBreakdown }) {
       <div className="flex flex-wrap items-center gap-2">
         <Badge tone="mint">อัตรากำไรส่วนเพิ่ม {(marginalRate * 100).toFixed(0)}%</Badge>
         <span className="text-sm text-ink-2">
-          ใช้เปรียบเทียบกับอัตราภาษีสุดท้ายของ 40(4)
+          เปรียบเทียบจากภาษีที่ต้องชำระเพิ่ม / ได้คืน (ไม่ใช่ภาษีรวมก่อนหัก)
         </span>
       </div>
 

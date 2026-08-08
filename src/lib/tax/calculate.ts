@@ -389,6 +389,15 @@ function applyTreatmentGroup(
   map.set(target.id, treatment);
 }
 
+/** Minimize ภาษีที่ต้องชำระเพิ่ม / maximize ขอคืน — not gross totalTax. */
+function scenarioPayable(
+  profile: TaxProfile,
+  items: Income404Source[],
+  forced: Map<string, "final" | "include">,
+) {
+  return computeCore(profile, resolveTreatments(items, forced)).taxPayable;
+}
+
 function optimizeAuto404(
   profile: TaxProfile,
   items: Income404Source[],
@@ -413,16 +422,16 @@ function optimizeAuto404(
   const n = decisionUnits.length;
   if (n <= 12) {
     let bestMask = 0;
-    let bestTax = Infinity;
+    let bestPayable = Infinity;
     for (let mask = 0; mask < 1 << n; mask++) {
       const forced = new Map(fixed);
       for (let i = 0; i < n; i++) {
         const treatment = mask & (1 << i) ? "include" : "final";
         for (const item of decisionUnits[i]) forced.set(item.id, treatment);
       }
-      const core = computeCore(profile, resolveTreatments(items, forced));
-      if (core.totalTax < bestTax - 1e-9) {
-        bestTax = core.totalTax;
+      const payable = scenarioPayable(profile, items, forced);
+      if (payable < bestPayable - 1e-9) {
+        bestPayable = payable;
         bestMask = mask;
       }
     }
@@ -440,14 +449,14 @@ function optimizeAuto404(
   while (improved) {
     improved = false;
     let bestUnit = -1;
-    let bestTax = computeCore(profile, resolveTreatments(items, fixed)).totalTax;
+    let bestPayable = scenarioPayable(profile, items, fixed);
     for (let i = 0; i < n; i++) {
       if (fixed.get(decisionUnits[i][0].id) === "include") continue;
       const trial = new Map(fixed);
       for (const item of decisionUnits[i]) trial.set(item.id, "include");
-      const tax = computeCore(profile, resolveTreatments(items, trial)).totalTax;
-      if (tax < bestTax - 1e-9) {
-        bestTax = tax;
+      const payable = scenarioPayable(profile, items, trial);
+      if (payable < bestPayable - 1e-9) {
+        bestPayable = payable;
         bestUnit = i;
       }
     }
@@ -464,8 +473,7 @@ function buildDecisions(
   items: Income404Source[],
   appliedMap: Map<string, "final" | "include">,
 ): Income404Decision[] {
-  const baseApplied = resolveTreatments(items, appliedMap);
-  const baseTax = computeCore(profile, baseApplied).totalTax;
+  const basePayable = scenarioPayable(profile, items, appliedMap);
 
   return items.map((item) => {
     const applied = appliedMap.get(item.id) ?? "final";
@@ -477,17 +485,14 @@ function buildDecisions(
     const asInclude = new Map(appliedMap);
     applyTreatmentGroup(asInclude, items, item, "include");
 
-    const taxFinal = computeCore(profile, resolveTreatments(items, asFinal)).totalTax;
-    const taxInclude = computeCore(
-      profile,
-      resolveTreatments(items, asInclude),
-    ).totalTax;
+    const payableFinal = scenarioPayable(profile, items, asFinal);
+    const payableInclude = scenarioPayable(profile, items, asInclude);
     const recommended: "final" | "include" =
-      taxInclude < taxFinal - 1e-9 ? "include" : "final";
+      payableInclude < payableFinal - 1e-9 ? "include" : "final";
 
-    const optimalTax = Math.min(taxFinal, taxInclude);
+    const optimalPayable = Math.min(payableFinal, payableInclude);
     const savingsIfFollowRecommendation = roundMoney(
-      Math.max(0, baseTax - optimalTax),
+      Math.max(0, basePayable - optimalPayable),
     );
 
     return {

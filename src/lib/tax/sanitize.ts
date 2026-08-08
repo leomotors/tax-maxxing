@@ -21,6 +21,17 @@ function money404(source: Income404Source): Income404Source {
     amount: roundMoney(Math.max(0, source.amount)),
     withheld: roundMoney(Math.max(0, source.withheld)),
     taxCredit: roundMoney(Math.max(0, source.taxCredit)),
+    importBreakdown: Array.isArray(source.importBreakdown)
+      ? source.importBreakdown.map((row) => ({
+          symbol: typeof row.symbol === "string" ? row.symbol : "",
+          dividend: roundMoney(Math.max(0, row.dividend)),
+          withheld: roundMoney(Math.max(0, row.withheld)),
+          taxCredit: roundMoney(Math.max(0, row.taxCredit)),
+          citRates: Array.isArray(row.citRates)
+            ? row.citRates.map(String)
+            : [],
+        }))
+      : undefined,
   };
 }
 
