@@ -91,26 +91,31 @@ export function PndTable({ breakdown }: { breakdown: TaxBreakdown }) {
               indent
             />
           ) : null}
-          {b.donationMaxPool > 0 || b.donationDeduction > 0 ? (
-            <Row
-              label="  เพดานบริจาค 10% (การศึกษา+ทั่วไป)"
-              value={b.donationMaxPool}
-              muted
-              indent
-            />
-          ) : null}
           <Row label="9. เงินได้สุทธิ" value={b.netIncome} strong />
-          <Row label="10. ภาษีคำนวณจากเงินได้สุทธิ" value={b.progressiveTax} />
-          <Row label="11. ภาษีสุดท้ายจาก 40(4)" value={b.finalTax} indent />
-          <Row label="12. ภาษีที่ต้องเสียทั้งสิ้น" value={b.totalTax} strong />
           <Row
-            label="13. หัก ภาษีหัก ณ ที่จ่าย / เครดิตภาษี"
+            label="10. ภาษีคำนวณจากเงินได้สุทธิ"
+            value={b.progressiveTax}
+            strong
+          />
+          <Row
+            label="11. หัก ณ ที่จ่ายนอก ภ.ง.ด.90/91"
+            value={b.finalTax}
+            indent
+          />
+          <Row
+            label="12. เครดิตภาษีนอก ภ.ง.ด.90/91"
+            value={b.outsideDividendTaxCredit}
+            indent
+          />
+          <Row label="13. ภาษีที่เสียจริง" value={b.totalTax} />
+          <Row
+            label="14. หัก ภาษีหัก ณ ที่จ่าย / เครดิตภาษีในแบบ"
             value={b.withheldTotal}
             indent
           />
           {b.dividendTaxCredit > 0 ? (
             <Row
-              label="  ในนั้นเป็นเครดิตภาษีเงินปันผล (นับเป็นภาษีที่จ่ายแล้ว)"
+              label="  ในนั้นเป็นเครดิตภาษีเงินปันผลใน ภ.ง.ด. (ม.47 ทวิ)"
               value={b.dividendTaxCredit}
               muted
               indent
@@ -119,8 +124,8 @@ export function PndTable({ breakdown }: { breakdown: TaxBreakdown }) {
           <Row
             label={
               b.taxPayable >= 0
-                ? "14. ภาษีที่ต้องชำระเพิ่ม"
-                : "14. ภาษีชำระไว้เกิน (ขอคืน)"
+                ? "15. ภาษีที่ต้องชำระเพิ่ม"
+                : "15. ภาษีชำระไว้เกิน (ขอคืน)"
             }
             value={Math.abs(b.taxPayable)}
             strong

@@ -1,11 +1,18 @@
 import { roundMoney } from "@/lib/money";
+import { DEFAULT_TAX_YEAR } from "@/lib/tax/constants";
 
 import type {
   Income404Source,
   IncomeSource,
   SpecialDeductionItem,
   TaxProfile,
+  TaxYear,
 } from "@/lib/tax/types";
+
+/** แอปนี้รองรับปีภาษีเดียว — โปรไฟล์เก่าจะถูกย้ายมาปีปัจจุบัน */
+function resolveTaxYear(_value: unknown): TaxYear {
+  return DEFAULT_TAX_YEAR;
+}
 
 function moneySource(source: IncomeSource): IncomeSource {
   return {
@@ -47,6 +54,7 @@ function moneySpecial(item: SpecialDeductionItem): SpecialDeductionItem {
 export function sanitizeProfile(profile: TaxProfile): TaxProfile {
   return {
     ...profile,
+    taxYear: resolveTaxYear(profile.taxYear),
     name: typeof profile.name === "string" ? profile.name : "",
     income401: profile.income401.map(moneySource),
     income402: profile.income402.map(moneySource),

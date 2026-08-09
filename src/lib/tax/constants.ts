@@ -1,6 +1,6 @@
 import type { Income404Kind, IncomeSection } from "./types";
 
-/** อัตราภาษีแบบขั้นบันได (ปีภาษี 2568) */
+/** อัตราภาษีแบบขั้นบันได (ปีภาษี 2569) */
 export const TAX_BRACKETS = [
   { upTo: 150_000, rate: 0 },
   { upTo: 300_000, rate: 0.05 },
@@ -11,6 +11,9 @@ export const TAX_BRACKETS = [
   { upTo: 5_000_000, rate: 0.3 },
   { upTo: Infinity, rate: 0.35 },
 ] as const;
+
+/** ปีภาษีที่แอปนี้วางแผน (พ.ศ.) */
+export const DEFAULT_TAX_YEAR = 2569 as const;
 
 export const PERSONAL_ALLOWANCE = 60_000;
 export const SPOUSE_ALLOWANCE = 60_000;
@@ -28,11 +31,20 @@ export const HEALTH_INSURANCE_CAP = 25_000;
 export const LIFE_PLUS_HEALTH_CAP = 100_000;
 export const PARENT_HEALTH_INSURANCE_CAP = 15_000;
 
-export const SOCIAL_SECURITY_CAP = 9_000;
+/**
+ * ประกันสังคม ม.33 ปี 2569: ฐานค่าจ้างสูงสุด 17,500 × 5% = 875/เดือน
+ * → สูงสุดทั้งปี 10,500
+ */
+export const SOCIAL_SECURITY_MONTHLY_CAP = 875;
+export const SOCIAL_SECURITY_CAP = SOCIAL_SECURITY_MONTHLY_CAP * 12;
 export const HOME_LOAN_INTEREST_CAP = 100_000;
 
 /** ลงทุนเพื่อการเกษียณรวม (PVD + กบข. + RMF + กอช. ฯลฯ) */
 export const RETIREMENT_COMBINED_CAP = 500_000;
+/** กองทุนสำรองเลี้ยงชีพ / กบข. — ไม่เกิน 15% ของเงินได้ */
+export const PROVIDENT_FUND_INCOME_RATE = 0.15;
+/** กอช. — สูงสุดต่อปี */
+export const NATIONAL_SAVINGS_FUND_CAP = 30_000;
 export const RMF_INCOME_RATE = 0.3;
 export const THAI_ESG_INCOME_RATE = 0.3;
 export const THAI_ESG_CAP = 300_000;

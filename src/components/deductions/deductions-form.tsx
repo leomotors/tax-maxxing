@@ -2,17 +2,36 @@
 
 import { SpecialDeductionsEditor } from "@/components/deductions/special-deductions";
 import { MoneyInput } from "@/components/ui/money-input";
+import { investmentMaxima } from "@/lib/tax/calculate";
+import {
+  NATIONAL_SAVINGS_FUND_CAP,
+  PROVIDENT_FUND_INCOME_RATE,
+  RETIREMENT_COMBINED_CAP,
+  RMF_INCOME_RATE,
+  SOCIAL_SECURITY_MONTHLY_CAP,
+  THAI_ESG_CAP,
+  THAI_ESG_INCOME_RATE,
+} from "@/lib/tax/constants";
 import type { TaxProfile } from "@/lib/tax/types";
+import { formatThb } from "@/lib/utils";
+
+function baht(n: number) {
+  return formatThb(n, { digits: 0 });
+}
 
 export function DeductionsForm({
   profile,
+  assessableIncome,
   onChange,
 }: {
   profile: TaxProfile;
+  /** เงินได้พึงประเมินหลังรวม 40(4) ที่เลือก — ใช้คำนวณเพดานลงทุน */
+  assessableIncome: number;
   onChange: (patch: Partial<TaxProfile>) => void;
 }) {
   const { personal, insurance, investment, specialDeductions, donation } =
     profile;
+  const maxima = investmentMaxima(profile, assessableIncome);
 
   return (
     <div className="space-y-8">
@@ -116,6 +135,10 @@ export function DeductionsForm({
         <h3 className="mb-3 text-sm font-semibold tracking-wide text-ink-2 uppercase">
           การลงทุน / กองทุน / ดอกเบี้ยบ้าน — จุด Tax-Maxxing
         </h3>
+        <p className="mb-3 text-sm text-ink-3">
+          ตัวเลข &quot;ลงทุนได้สูงสุด&quot; คำนวณจากเงินได้พึงประเมินปัจจุบันและรายการเกษียณอื่นที่กรอกแล้ว
+          (กลุ่มเกษียณรวมกันไม่เกิน {baht(RETIREMENT_COMBINED_CAP)})
+        </p>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <MoneyInput
             label="ประกันสังคม"
@@ -123,7 +146,7 @@ export function DeductionsForm({
             onChange={(socialSecurity) =>
               onChange({ investment: { ...investment, socialSecurity } })
             }
-            hint="สูงสุดประมาณ 9,000"
+            hint={`สูงสุด ${baht(maxima.socialSecurity)} (${baht(SOCIAL_SECURITY_MONTHLY_CAP)}×12 · ปี 2569)`}
           />
           <MoneyInput
             label="กองทุนสำรองเลี้ยงชีพ / กบข."
@@ -131,6 +154,7 @@ export function DeductionsForm({
             onChange={(providentFund) =>
               onChange({ investment: { ...investment, providentFund } })
             }
+            hint={`ลงทุนได้สูงสุด ${baht(maxima.providentFund)} (≤ ${(PROVIDENT_FUND_INCOME_RATE * 100).toFixed(0)}% ของเงินได้ · รวมเกษียณ ≤ ${baht(RETIREMENT_COMBINED_CAP)})`}
           />
           <MoneyInput
             label="กอช."
@@ -138,12 +162,13 @@ export function DeductionsForm({
             onChange={(nationalSavingsFund) =>
               onChange({ investment: { ...investment, nationalSavingsFund } })
             }
+            hint={`ลงทุนได้สูงสุด ${baht(maxima.nationalSavingsFund)} (เพดาน ${baht(NATIONAL_SAVINGS_FUND_CAP)} · รวมเกษียณ ≤ ${baht(RETIREMENT_COMBINED_CAP)})`}
           />
           <MoneyInput
             label="RMF"
             value={investment.rmf}
             onChange={(rmf) => onChange({ investment: { ...investment, rmf } })}
-            hint="≤ 30% ของเงินได้ และรวมเกษียณ ≤ 500,000"
+            hint={`ลงทุนได้สูงสุด ${baht(maxima.rmf)} (≤ ${(RMF_INCOME_RATE * 100).toFixed(0)}% ของเงินได้ · รวมเกษียณ ≤ ${baht(RETIREMENT_COMBINED_CAP)})`}
           />
           <MoneyInput
             label="ThaiESG"
@@ -151,7 +176,7 @@ export function DeductionsForm({
             onChange={(thaiEsg) =>
               onChange({ investment: { ...investment, thaiEsg } })
             }
-            hint="≤ 30% ของเงินได้ สูงสุด 300,000"
+            hint={`ลงทุนได้สูงสุด ${baht(maxima.thaiEsg)} (≤ ${(THAI_ESG_INCOME_RATE * 100).toFixed(0)}% ของเงินได้ · สูงสุด ${baht(THAI_ESG_CAP)} · แยกจากกลุ่มเกษียณ)`}
           />
           <MoneyInput
             label="ดอกเบี้ยบ้าน"
@@ -159,7 +184,7 @@ export function DeductionsForm({
             onChange={(homeLoanInterest) =>
               onChange({ investment: { ...investment, homeLoanInterest } })
             }
-            hint="สูงสุด 100,000"
+            hint={`สูงสุด ${baht(maxima.homeLoanInterest)}`}
           />
         </div>
       </div>

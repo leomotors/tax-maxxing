@@ -164,10 +164,43 @@ describe("calculateTax", () => {
     // เงินได้ = 100k + (80k+20k credit) = 200k
     expect(result.assessableIncome).toBe(200_000);
     expect(result.dividendTaxCredit).toBe(20_000);
-    // หัก ณ ที่จ่าย = 8k + 20k credit
+    expect(result.outsideDividendTaxCredit).toBe(0);
+    // หัก ณ ที่จ่าย = 8k + 20k credit (ในแบบ)
     expect(result.withheldTotal).toBe(28_000);
     // ไม่หักเครดิตออกจากภาษีบันไดซ้ำ
     expect(result.taxAfterCredit).toBe(result.progressiveTax);
+    // include → เครดิตอยู่ในแบบ ไม่นับข้อ 11 (นอกแบบ)
+    expect(result.finalTax).toBe(0);
+    expect(result.totalTax).toBe(result.progressiveTax);
+    expect(result.taxPayable).toBe(subMoney(result.progressiveTax, 28_000));
+  });
+
+  it("counts final 40(4) tax and its tax credit as outside-PND tax", () => {
+    const profile = emptyProfile();
+    profile.income401 = [
+      { id: "1", label: "Job", amount: 100_000, withheld: 0 },
+    ];
+    profile.income404 = [
+      {
+        id: "d1",
+        label: "ปันผล",
+        kind: "thai_dividend",
+        amount: 80_000,
+        withheld: 8_000,
+        taxCredit: 20_000,
+        treatment: "final",
+      },
+    ];
+
+    const result = calculateTax(profile);
+    expect(result.dividendTaxCredit).toBe(0);
+    expect(result.outsideDividendTaxCredit).toBe(20_000);
+    // ข้อ 11 = หัก ณ ที่จ่ายนอกแบบ (10%) — เครดิตแยกข้อ 12
+    expect(result.finalTax).toBe(8_000);
+    expect(result.totalTax).toBe(addMoney(result.progressiveTax, 28_000));
+    // final 40(4) ไม่อยู่ในข้อ 14 — ยอดชำระตามแบบ = ภาษีบันไดอย่างเดียว
+    expect(result.withheldTotal).toBe(0);
+    expect(result.taxPayable).toBe(result.progressiveTax);
   });
 
   it("prefers final tax for interest when marginal rate is high", () => {
@@ -246,7 +279,9 @@ describe("calculateTax", () => {
 
     const finalR = calculateTax(asFinal);
     const includeR = calculateTax(asInclude);
-    expect(finalR.totalTax).toBeLessThan(includeR.totalTax);
+    // final: ข้อ 11 รวมเครดิตนอกแบบ → totalTax สูงได้ แต่ไม่ช่วยยอดชำระตามแบบ
+    expect(finalR.outsideDividendTaxCredit).toBe(50_000);
+    expect(finalR.totalTax).toBeGreaterThan(includeR.totalTax);
     expect(includeR.taxPayable).toBeLessThan(finalR.taxPayable);
 
     const result = calculateTax(profile);

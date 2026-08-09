@@ -1,5 +1,5 @@
 /** ปีภาษีที่รองรับ (พ.ศ.) */
-export type TaxYear = 2568;
+export type TaxYear = 2569;
 
 export type IncomeSection =
   | "40_1"
@@ -170,9 +170,23 @@ export interface TaxBreakdown {
   netIncome: number;
   brackets: BracketLine[];
   progressiveTax: number;
+  /**
+   * เครดิตภาษีเงินปันผลที่นำมารวมใน ภ.ง.ด. (ม.47 ทวิ) — อยู่ในข้อ 13
+   */
   dividendTaxCredit: number;
+  /**
+   * เครดิตภาษีของรายการที่เลือกภาษีสุดท้าย — นับเป็นภาษีที่จ่ายนอก ภ.ง.ด.
+   * (แบกรับภาษีนิติบุคคลแทนบริษัท) รวมในข้อ 11
+   */
+  outsideDividendTaxCredit: number;
   taxAfterCredit: number;
+  /**
+   * ภาษีหัก ณ ที่จ่ายนอก ภ.ง.ด.90/91 (ภาษีสุดท้าย 40(4)) — ข้อ 11
+   */
   finalTax: number;
+  /**
+   * ภาษีที่เสียจริง = ข้อ 10 + ข้อ 11 + เครดิตนอกแบบ
+   */
   totalTax: number;
   withheldTotal: number;
   taxPayable: number;

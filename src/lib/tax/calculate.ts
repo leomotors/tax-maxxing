@@ -12,6 +12,7 @@ import {
 import {
   CHILD_ALLOWANCE,
   CHILD_BORN_FROM_2561_ALLOWANCE,
+  DEFAULT_TAX_YEAR,
   DISABLED_DEPENDENT_ALLOWANCE,
   DONATION_NET_INCOME_RATE,
   EXPENSE_401_402_CAP,
@@ -22,10 +23,12 @@ import {
   KIND_404_META,
   LIFE_INSURANCE_CAP,
   LIFE_PLUS_HEALTH_CAP,
+  NATIONAL_SAVINGS_FUND_CAP,
   PARENT_ALLOWANCE,
   PARENT_HEALTH_INSURANCE_CAP,
   PERSONAL_ALLOWANCE,
   POLITICAL_DONATION_CAP,
+  PROVIDENT_FUND_INCOME_RATE,
   RETIREMENT_COMBINED_CAP,
   RMF_INCOME_RATE,
   SOCIAL_SECURITY_CAP,
@@ -41,6 +44,7 @@ import type {
   Income404Source,
   TaxBreakdown,
   TaxProfile,
+  TaxYear,
 } from "./types";
 
 type Applied404 = Income404Source & { applied: "final" | "include" };
@@ -67,15 +71,17 @@ function included404Assessable(items: Applied404[]) {
 }
 
 /**
- * ภาษีที่ชำระแล้วจาก 40(4):
- * - ทุกรายการ: หัก ณ ที่จ่าย
- * - ปันผลไทยที่นำมารวม: + เครดิตภาษี (ถือเป็นภาษีที่จ่ายแล้ว)
+ * ภาษีที่ชำระแล้วจาก 40(4) ที่ขึ้น ภ.ง.ด. เท่านั้น (applied = include):
+ * - หัก ณ ที่จ่ายของรายการที่นำมารวม
+ * - ปันผลไทย: + เครดิตภาษี (ม.47 ทวิ)
+ * รายการ final อยู่นอกแบบ — ไม่นับที่นี่ (ไปข้อ 11 แทน)
  */
-function withheld404(items: Applied404[]) {
+function withheld404OnForm(items: Applied404[]) {
   let total = 0;
   for (const item of items) {
+    if (item.applied !== "include") continue;
     total += toSatang(Math.max(0, item.withheld));
-    if (item.applied === "include" && item.kind === "thai_dividend") {
+    if (item.kind === "thai_dividend") {
       total += toSatang(Math.max(0, item.taxCredit));
     }
   }
@@ -176,19 +182,19 @@ function investmentDeductions(
     Math.min(mulRate(assessableForCap, THAI_ESG_INCOME_RATE), THAI_ESG_CAP),
   );
 
-  const pvd = clampMoney(
-    inv.providentFund,
-    Math.max(
-      0,
-      subMoney(
-        RETIREMENT_COMBINED_CAP,
-        addMoney(rmf, Math.max(0, inv.nationalSavingsFund)),
-      ),
+  const pvdCapByIncome = mulRate(assessableForCap, PROVIDENT_FUND_INCOME_RATE);
+  const pvdCapCombined = Math.max(
+    0,
+    subMoney(
+      RETIREMENT_COMBINED_CAP,
+      addMoney(rmf, Math.max(0, inv.nationalSavingsFund)),
     ),
   );
+  const pvd = clampMoney(inv.providentFund, Math.min(pvdCapByIncome, pvdCapCombined));
+  const goscoCapCombined = Math.max(0, subMoney(RETIREMENT_COMBINED_CAP, addMoney(rmf, pvd)));
   const gosco = clampMoney(
     inv.nationalSavingsFund,
-    Math.max(0, subMoney(RETIREMENT_COMBINED_CAP, addMoney(rmf, pvd))),
+    Math.min(NATIONAL_SAVINGS_FUND_CAP, goscoCapCombined),
   );
 
   return {
@@ -316,33 +322,44 @@ function computeCore(
 
   const { tax: progressive, brackets, marginalRate } = progressiveTax(netIncome);
 
-  // เครดิตภาษีที่นำมารวม (ม.47 ทวิ) — gross-up เป็นเงินได้ และนับในภาษีที่จ่ายแล้ว
-  let dividendCreditSatang = 0;
+  // เครดิตภาษีเงินปันผล:
+  // - include → อยู่ใน ภ.ง.ด. (ม.47 ทวิ) / ข้อ 13
+  // - final → นอก ภ.ง.ด. แต่ยังนับเป็นภาษีที่จ่ายแทนบริษัท / ข้อ 11
+  let pndCreditSatang = 0;
+  let outsideCreditSatang = 0;
   for (const item of items404) {
-    if (item.applied === "include" && item.kind === "thai_dividend") {
-      dividendCreditSatang += toSatang(Math.max(0, item.taxCredit));
-    }
+    if (item.kind !== "thai_dividend") continue;
+    const credit = toSatang(Math.max(0, item.taxCredit));
+    if (item.applied === "include") pndCreditSatang += credit;
+    else if (item.applied === "final") outsideCreditSatang += credit;
   }
-  const dividendTaxCredit = fromSatang(dividendCreditSatang);
+  const dividendTaxCredit = fromSatang(pndCreditSatang);
+  const outsideDividendTaxCredit = fromSatang(outsideCreditSatang);
 
-  // ไม่หักเครดิตออกจากภาษีบันไดซ้ำ — เครดิตอยู่ในยอดหัก ณ ที่จ่ายแล้ว
+  // ไม่หักเครดิตออกจากภาษีบันไดซ้ำ — เครดิตในแบบอยู่ในยอดหัก ณ ที่จ่ายแล้ว
   const taxAfterCredit = progressive;
 
-  let finalTaxSatang = 0;
+  let finalTaxOnlySatang = 0;
   for (const item of final404) {
-    finalTaxSatang += toSatang(mulRate(Math.max(0, item.amount), FINAL_TAX_RATE[item.kind]));
+    finalTaxOnlySatang += toSatang(
+      mulRate(Math.max(0, item.amount), FINAL_TAX_RATE[item.kind]),
+    );
   }
-  const finalTax = fromSatang(finalTaxSatang);
+  // ข้อ 11: หัก ณ ที่จ่ายนอกแบบ (ภาษีสุดท้าย) — เครดิตแยกบรรทัด
+  const finalTax = fromSatang(finalTaxOnlySatang);
 
-  const totalTax = addMoney(taxAfterCredit, finalTax);
+  // ข้อ 13 ภาษีที่เสียจริง = ในแบบ (ข้อ 10) + นอกแบบ (ข้อ 11+12)
+  const totalTax = addMoney(taxAfterCredit, finalTax, outsideDividendTaxCredit);
 
+  // ข้อ 14: หักในแบบเท่านั้น — ไม่รวม 40(4) ที่เลือก final
   const withheldTotal = addMoney(
     sumWithheld(profile.income401),
     sumWithheld(profile.income402),
-    withheld404(items404),
+    withheld404OnForm(items404),
   );
 
-  const taxPayable = subMoney(totalTax, withheldTotal);
+  // ยอดชำระ/คืนตาม ภ.ง.ด. = ภาษีบันได − หักในแบบ (ภาษีสุดท้ายอยู่นอกแบบ)
+  const taxPayable = subMoney(taxAfterCredit, withheldTotal);
 
   return {
     assessableIncome,
@@ -361,6 +378,7 @@ function computeCore(
     brackets,
     progressiveTax: progressive,
     dividendTaxCredit,
+    outsideDividendTaxCredit,
     taxAfterCredit,
     finalTax,
     totalTax,
@@ -641,7 +659,44 @@ export function calculateTax(profile: TaxProfile): TaxBreakdown {
   };
 }
 
-export function emptyProfile(taxYear: TaxProfile["taxYear"] = 2568): TaxProfile {
+/** เพดานลงทุน/ลดหย่อนตามเงินได้และรายการเกษียณอื่นที่กรอกแล้ว */
+export function investmentMaxima(
+  profile: TaxProfile,
+  assessableIncome: number,
+) {
+  const inv = profile.investment;
+  const pvd = Math.max(0, inv.providentFund);
+  const gosco = Math.max(0, inv.nationalSavingsFund);
+  const rmf = Math.max(0, inv.rmf);
+
+  const pvdMax = Math.min(
+    mulRate(assessableIncome, PROVIDENT_FUND_INCOME_RATE),
+    Math.max(0, subMoney(RETIREMENT_COMBINED_CAP, addMoney(gosco, rmf))),
+  );
+  const goscoMax = Math.min(
+    NATIONAL_SAVINGS_FUND_CAP,
+    Math.max(0, subMoney(RETIREMENT_COMBINED_CAP, addMoney(pvd, rmf))),
+  );
+  const rmfMax = Math.min(
+    mulRate(assessableIncome, RMF_INCOME_RATE),
+    Math.max(0, subMoney(RETIREMENT_COMBINED_CAP, addMoney(pvd, gosco))),
+  );
+  const thaiEsgMax = Math.min(
+    mulRate(assessableIncome, THAI_ESG_INCOME_RATE),
+    THAI_ESG_CAP,
+  );
+
+  return {
+    socialSecurity: SOCIAL_SECURITY_CAP,
+    providentFund: roundMoney(Math.max(0, pvdMax)),
+    nationalSavingsFund: roundMoney(Math.max(0, goscoMax)),
+    rmf: roundMoney(Math.max(0, rmfMax)),
+    thaiEsg: roundMoney(Math.max(0, thaiEsgMax)),
+    homeLoanInterest: HOME_LOAN_INTEREST_CAP,
+  };
+}
+
+export function emptyProfile(taxYear: TaxYear = DEFAULT_TAX_YEAR): TaxProfile {
   return {
     version: 1,
     taxYear,

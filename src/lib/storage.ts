@@ -1,4 +1,5 @@
 import { emptyProfile } from "@/lib/tax/calculate";
+import { DEFAULT_TAX_YEAR } from "@/lib/tax/constants";
 import { sanitizeProfile } from "@/lib/tax/sanitize";
 import type { TaxProfile } from "@/lib/tax/types";
 
@@ -12,8 +13,9 @@ export function loadProfile(): TaxProfile {
     const parsed = JSON.parse(raw) as TaxProfile;
     if (parsed?.version !== 1) return emptyProfile();
     return sanitizeProfile({
-      ...emptyProfile(parsed.taxYear),
+      ...emptyProfile(DEFAULT_TAX_YEAR),
       ...parsed,
+      taxYear: DEFAULT_TAX_YEAR,
       version: 1,
     });
   } catch {
@@ -59,8 +61,9 @@ export function parseProfileJson(text: string): TaxProfile {
     throw new Error("รูปแบบไฟล์ไม่รองรับ (ต้องการ version: 1)");
   }
   return sanitizeProfile({
-    ...emptyProfile(parsed.taxYear ?? 2568),
+    ...emptyProfile(DEFAULT_TAX_YEAR),
     ...parsed,
+    taxYear: DEFAULT_TAX_YEAR,
     version: 1,
   });
 }
