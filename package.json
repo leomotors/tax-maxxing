@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "check": "tsc --noEmit",
+    "check:privacy": "node scripts/check-privacy.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

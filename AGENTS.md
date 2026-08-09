@@ -32,6 +32,9 @@ Never put real personal data in the repo — code, comments, tests, fixtures, do
 ```bash
 pnpm dev
 pnpm check
+pnpm check:privacy
 pnpm test
 pnpm build
 ```
+
+`pnpm check:privacy` (also in CI) scans tracked files for home paths, Downloads paths, personal emails, 13-digit IDs, and real SET symbols.
