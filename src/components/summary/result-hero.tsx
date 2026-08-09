@@ -133,16 +133,16 @@ function FloatingSummary({
       return;
     }
     const io = new IntersectionObserver(
-      ([entry]) => setShow(!entry.isIntersecting),
+      ([entry]) => {
+        const nextShow = !entry.isIntersecting;
+        setShow(nextShow);
+        if (!nextShow) setOpen(false);
+      },
       { rootMargin: "-64px 0px 0px 0px", threshold: 0 },
     );
     io.observe(anchor);
     return () => io.disconnect();
   }, [anchorRef]);
-
-  useEffect(() => {
-    if (!show) setOpen(false);
-  }, [show]);
 
   const payable = metrics.find((m) => m.key === "payable");
   if (!payable) return null;

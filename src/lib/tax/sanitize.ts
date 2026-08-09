@@ -10,7 +10,7 @@ import type {
 } from "@/lib/tax/types";
 
 /** แอปนี้รองรับปีภาษีเดียว — โปรไฟล์เก่าจะถูกย้ายมาปีปัจจุบัน */
-function resolveTaxYear(_value: unknown): TaxYear {
+function resolveTaxYear(): TaxYear {
   return DEFAULT_TAX_YEAR;
 }
 
@@ -54,7 +54,7 @@ function moneySpecial(item: SpecialDeductionItem): SpecialDeductionItem {
 export function sanitizeProfile(profile: TaxProfile): TaxProfile {
   return {
     ...profile,
-    taxYear: resolveTaxYear(profile.taxYear),
+    taxYear: resolveTaxYear(),
     name: typeof profile.name === "string" ? profile.name : "",
     income401: profile.income401.map(moneySource),
     income402: profile.income402.map(moneySource),
