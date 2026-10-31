@@ -1,26 +1,29 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
-  Download,
+  Archive,
   RotateCcw,
-  Upload,
   Calculator,
   Landmark,
   PiggyBank,
   Sparkles,
 } from "lucide-react";
 
+import { DriveMenu } from "@/components/backup/drive-menu";
+import { MoreMenu } from "@/components/backup/more-menu";
 import { DeductionsForm } from "@/components/deductions/deductions-form";
 import { ExpenseSummary } from "@/components/income/expense-summary";
 import { Income401402Editor } from "@/components/income/income-401-402";
+import { FilingSwitcher } from "@/components/filings/filing-switcher";
 import { Income404Editor } from "@/components/income/income-404";
 import { MaxxingPanel } from "@/components/summary/maxxing-panel";
 import { BracketTable, PndTable } from "@/components/summary/pnd-table";
 import { ResultHero } from "@/components/summary/result-hero";
 import { Button } from "@/components/ui/button";
 import { Badge, Section } from "@/components/ui/section";
-import { useTaxProfile } from "@/hooks/use-tax-profile";
+import { getLibraryEpoch, updateFilingById, useTaxProfile } from "@/hooks/use-tax-profile";
+import { clearDriveCache } from "@/lib/google-drive/sync";
 import { addMoney, subMoney } from "@/lib/money";
 import { expense401402 } from "@/lib/tax/calculate";
 import { INCOME_SECTION_META } from "@/lib/tax/constants";
@@ -33,8 +36,28 @@ const NAV = [
 ];
 
 export function AppShell() {
-  const { profile, setProfile, breakdown, reset, download, upload } =
-    useTaxProfile();
+  const {
+    profile,
+    filings,
+    activeId,
+    storageError,
+    storageBlocked,
+    storageRawAvailable,
+    setProfile,
+    breakdown,
+    reset,
+    resetAll,
+    selectFiling,
+    createFiling,
+    duplicateFiling,
+    deleteFiling,
+    download,
+    downloadBackup,
+    downloadRawStorage,
+    upload,
+  } = useTaxProfile();
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const epoch = getLibraryEpoch();
   const fileRef = useRef<HTMLInputElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
 
@@ -76,16 +99,15 @@ export function AppShell() {
           </nav>
 
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex min-w-[10rem] flex-1 items-center gap-2 sm:max-w-[14rem] sm:flex-none">
-              <span className="sr-only">ชื่อไฟล์</span>
-              <input
-                type="text"
-                value={profile.name}
-                placeholder="ชื่อไฟล์ JSON"
-                className="w-full rounded-[var(--radius)] border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
-                onChange={(e) => setProfile({ name: e.target.value })}
-              />
-            </label>
+            <FilingSwitcher
+              filings={filings}
+              activeId={activeId}
+              onRename={(name) => setProfile({ name })}
+              onSelect={selectFiling}
+              onCreate={createFiling}
+              onDuplicate={duplicateFiling}
+              onDelete={deleteFiling}
+            />
             <input
               ref={fileRef}
               type="file"
@@ -93,31 +115,84 @@ export function AppShell() {
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
-                if (file) void upload(file);
                 e.target.value = "";
+                if (!file) return;
+                setUploadError(null);
+                upload(file, (count) => {
+                  const ok = confirm(
+                    `ไฟล์นี้เป็นไฟล์สำรอง ${count} รายการ — แทนที่ข้อมูลทั้งหมดในเครื่องนี้?`,
+                  );
+                  // Local data no longer matches what was synced; next Drive backup asks first.
+                  if (ok) clearDriveCache();
+                  return ok;
+                }).catch((err: unknown) =>
+                  setUploadError(err instanceof Error ? err.message : "โหลดไฟล์ไม่สำเร็จ"),
+                );
               }}
             />
-            <Button type="button" onClick={() => fileRef.current?.click()}>
-              <Upload className="size-4" />
-              โหลด JSON
+            <Button
+              type="button"
+              onClick={downloadBackup}
+              disabled={storageBlocked}
+              title="ทุกรายการในไฟล์เดียว"
+            >
+              <Archive className="size-4" />
+              บันทึกทั้งหมด
             </Button>
-            <Button type="button" onClick={download}>
-              <Download className="size-4" />
-              บันทึก JSON
-            </Button>
+            <DriveMenu
+              // Blocked: the library is a placeholder; keep the corrupt raw data instead.
+              onDownloadLocal={storageBlocked ? downloadRawStorage : downloadBackup}
+              storageBlocked={storageBlocked}
+            />
             <Button
               type="button"
               variant="ghost"
               onClick={() => {
-                if (confirm("ล้างข้อมูลทั้งหมดในเครื่องนี้?")) reset();
+                if (confirm("ล้างข้อมูลของรายการนี้?")) reset();
               }}
             >
               <RotateCcw className="size-4" />
-              ล้าง
+              ล้างรายการนี้
             </Button>
+            <MoreMenu
+              onLoadJson={() => fileRef.current?.click()}
+              onSaveFilingJson={download}
+              saveDisabled={storageBlocked}
+            />
           </div>
         </div>
       </header>
+
+      {(storageError || uploadError) && (
+        <div className="mx-auto max-w-7xl px-4 pt-4 md:px-6">
+          <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius)] border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+            <span className="flex-1">{uploadError ?? storageError}</span>
+            {storageBlocked && !uploadError && (
+              <>
+                {storageRawAvailable && (
+                  <Button type="button" onClick={downloadRawStorage}>
+                    ดาวน์โหลดข้อมูลดิบ
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => {
+                    if (confirm("ล้างข้อมูลที่เสียหายและเริ่มใหม่?")) resetAll();
+                  }}
+                >
+                  ล้างและเริ่มใหม่
+                </Button>
+              </>
+            )}
+            {uploadError && (
+              <Button type="button" variant="ghost" onClick={() => setUploadError(null)}>
+                ปิด
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
 
       <main className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-10">
         <div className="flex items-stretch gap-6">
@@ -132,7 +207,8 @@ export function AppShell() {
               </h1>
               <p className="mt-3 text-ink-2">
                 กรอกเงินได้และค่าลดหย่อน ระบบช่วยเลือก 40(4) ระหว่างภาษีสุดท้ายกับบันได
-                และแนะนำวงเงิน RMF / ThaiESG / บริจาค — ข้อมูลเก็บในเครื่องคุณเท่านั้น
+                และแนะนำวงเงิน RMF / ThaiESG / บริจาค — ข้อมูลเก็บในเครื่องคุณ
+                เว้นแต่คุณเลือกสำรองไป Google Drive ของคุณเอง
               </p>
             </div>
 
@@ -177,9 +253,14 @@ export function AppShell() {
                     {INCOME_SECTION_META["40_4"].description}
                   </p>
                   <Income404Editor
+                    key={profile.id}
                     sources={profile.income404}
                     decisions={breakdown.decisions404}
-                    onChange={(income404) => setProfile({ income404 })}
+                    // Bound to this filing's id and the current library: the Excel import
+                    // resolves after an await, possibly after a filing switch or restore.
+                    onChange={(income404) =>
+                      updateFilingById(profile.id, { income404 }, epoch)
+                    }
                   />
                   <ExpenseSummary
                     ruleLabel={INCOME_SECTION_META["40_4"].expenseLabel}
@@ -249,7 +330,7 @@ export function AppShell() {
             <footer className="border-t border-line pt-6 pb-24 text-center text-xs text-ink-3 xl:pb-10">
               Tax-Maxxing เป็นเครื่องมือประมาณการ ไม่ใช่คำปรึกษาทางภาษี —
               โปรดตรวจสอบกับกรมสรรพากรหรือผู้ประกอบวิชาชีพก่อนยื่นแบบ
-              · ข้อมูลบันทึกใน localStorage ของเบราว์เซอร์นี้
+              · ข้อมูลบันทึกใน localStorage ของเบราว์เซอร์นี้ (และ Google Drive ของคุณเมื่อกดสำรอง)
             </footer>
           </div>
 

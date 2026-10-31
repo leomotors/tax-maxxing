@@ -98,6 +98,8 @@ export interface SpecialDeductionItem {
 
 export interface TaxProfile {
   version: 1;
+  /** Stable id within the local filing library / Drive backup. */
+  id: string;
   taxYear: TaxYear;
   /** ชื่อชุดข้อมูล — ใช้เป็นชื่อไฟล์ JSON และโหลดกลับได้ */
   name: string;

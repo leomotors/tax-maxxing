@@ -699,6 +699,7 @@ export function investmentMaxima(
 export function emptyProfile(taxYear: TaxYear = DEFAULT_TAX_YEAR): TaxProfile {
   return {
     version: 1,
+    id: crypto.randomUUID(),
     taxYear,
     name: "",
     updatedAt: new Date().toISOString(),

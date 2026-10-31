@@ -17,23 +17,23 @@ function resolveTaxYear(): TaxYear {
 function moneySource(source: IncomeSource): IncomeSource {
   return {
     ...source,
-    amount: roundMoney(Math.max(0, source.amount)),
-    withheld: roundMoney(Math.max(0, source.withheld)),
+    amount: safeMoney(source.amount),
+    withheld: safeMoney(source.withheld),
   };
 }
 
 function money404(source: Income404Source): Income404Source {
   return {
     ...source,
-    amount: roundMoney(Math.max(0, source.amount)),
-    withheld: roundMoney(Math.max(0, source.withheld)),
-    taxCredit: roundMoney(Math.max(0, source.taxCredit)),
+    amount: safeMoney(source.amount),
+    withheld: safeMoney(source.withheld),
+    taxCredit: safeMoney(source.taxCredit),
     importBreakdown: Array.isArray(source.importBreakdown)
       ? source.importBreakdown.map((row) => ({
           symbol: typeof row.symbol === "string" ? row.symbol : "",
-          dividend: roundMoney(Math.max(0, row.dividend)),
-          withheld: roundMoney(Math.max(0, row.withheld)),
-          taxCredit: roundMoney(Math.max(0, row.taxCredit)),
+          dividend: safeMoney(row.dividend),
+          withheld: safeMoney(row.withheld),
+          taxCredit: safeMoney(row.taxCredit),
           citRates: Array.isArray(row.citRates)
             ? row.citRates.map(String)
             : [],
@@ -46,8 +46,19 @@ function moneySpecial(item: SpecialDeductionItem): SpecialDeductionItem {
   return {
     ...item,
     label: typeof item.label === "string" ? item.label : "",
-    amount: roundMoney(Math.max(0, item.amount)),
+    amount: safeMoney(item.amount),
   };
+}
+
+/** Upper bound so satang conversion can't overflow to Infinity (saved as null). */
+const MAX_MONEY = 1e12;
+
+function safeMoney(value: number) {
+  return Number.isFinite(value) ? roundMoney(Math.min(Math.max(0, value), MAX_MONEY)) : 0;
+}
+
+function safeCount(value: number) {
+  return Number.isFinite(value) ? Math.min(Math.max(0, Math.floor(value)), 1000) : 0;
 }
 
 /** Normalize every money field to satang-safe baht values. */
@@ -56,35 +67,37 @@ export function sanitizeProfile(profile: TaxProfile): TaxProfile {
     ...profile,
     taxYear: resolveTaxYear(),
     name: typeof profile.name === "string" ? profile.name : "",
+    personal: {
+      spouse: Boolean(profile.personal.spouse),
+      children: safeCount(profile.personal.children),
+      childrenBornFrom2561: safeCount(profile.personal.childrenBornFrom2561),
+      ownParents: safeCount(profile.personal.ownParents),
+      spouseParents: safeCount(profile.personal.spouseParents),
+      disabledDependents: safeCount(profile.personal.disabledDependents),
+    },
     income401: profile.income401.map(moneySource),
     income402: profile.income402.map(moneySource),
     income404: profile.income404.map(money404),
     insurance: {
-      lifeInsurance: roundMoney(Math.max(0, profile.insurance.lifeInsurance)),
-      healthInsurance: roundMoney(Math.max(0, profile.insurance.healthInsurance)),
-      parentHealthInsurance: roundMoney(
-        Math.max(0, profile.insurance.parentHealthInsurance),
-      ),
+      lifeInsurance: safeMoney(profile.insurance.lifeInsurance),
+      healthInsurance: safeMoney(profile.insurance.healthInsurance),
+      parentHealthInsurance: safeMoney(profile.insurance.parentHealthInsurance),
     },
     investment: {
-      socialSecurity: roundMoney(Math.max(0, profile.investment.socialSecurity)),
-      providentFund: roundMoney(Math.max(0, profile.investment.providentFund)),
-      nationalSavingsFund: roundMoney(
-        Math.max(0, profile.investment.nationalSavingsFund),
-      ),
-      rmf: roundMoney(Math.max(0, profile.investment.rmf)),
-      thaiEsg: roundMoney(Math.max(0, profile.investment.thaiEsg)),
-      homeLoanInterest: roundMoney(
-        Math.max(0, profile.investment.homeLoanInterest),
-      ),
+      socialSecurity: safeMoney(profile.investment.socialSecurity),
+      providentFund: safeMoney(profile.investment.providentFund),
+      nationalSavingsFund: safeMoney(profile.investment.nationalSavingsFund),
+      rmf: safeMoney(profile.investment.rmf),
+      thaiEsg: safeMoney(profile.investment.thaiEsg),
+      homeLoanInterest: safeMoney(profile.investment.homeLoanInterest),
     },
     specialDeductions: Array.isArray(profile.specialDeductions)
       ? profile.specialDeductions.map(moneySpecial)
       : [],
     donation: {
-      general: roundMoney(Math.max(0, profile.donation.general)),
-      education: roundMoney(Math.max(0, profile.donation.education)),
-      political: roundMoney(Math.max(0, profile.donation.political)),
+      general: safeMoney(profile.donation.general),
+      education: safeMoney(profile.donation.education),
+      political: safeMoney(profile.donation.political),
     },
   };
 }

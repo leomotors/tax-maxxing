@@ -31,6 +31,8 @@
 *.local.xls
 *tax-export*.json
 *profile-export*.json
+*tax-maxxing-backup*.json
+tax-maxxing-raw-storage.json
 
 # debug
 npm-debug.log*
@@ -40,6 +42,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel

@@ -2,6 +2,9 @@
 
 ## [minor]
 
+- feat: หลายรายการยื่นภาษีในเครื่องเดียว — ตัวเลือกรายการ สร้าง/ทำสำเนา/ลบ และย้ายข้อมูลเดิมอัตโนมัติ
+- feat: สำรอง/กู้คืนทุกรายการเป็นไฟล์เดียวบน Google Drive (scope `drive.file`, ไม่มีเซิร์ฟเวอร์) พร้อมเตือนเมื่อไฟล์บน Drive ถูกแก้จากที่อื่น (ใช้ได้เฉพาะ test user — แอปไม่ได้ส่ง Google ตรวจสอบ)
+- feat: บันทึก/โหลดไฟล์สำรองทุกรายการเป็น JSON เดียว และตรวจสอบไฟล์นำเข้าอย่างเข้มงวด
 - chore: เพิ่ม GitHub Actions CI (lint, typecheck, build)
 - chore: ตรวจ PII / ข้อมูลภาษีส่วนตัวใน CI ทุกครั้งที่ push (`pnpm check:privacy`)
 - fix: อนุญาต build scripts ของ sharp / unrs-resolver สำหรับ pnpm 11 ใน CI
