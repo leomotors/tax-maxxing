@@ -65,6 +65,26 @@ describe("parseProfile", () => {
     expect(parsed.insurance.healthInsurance).toBe(0);
   });
 
+  it("re-ids duplicate rows so 40(4) treatments can't collide", () => {
+    const row = {
+      id: "dup",
+      label: "STOCKA",
+      kind: "thai_dividend",
+      amount: 1000,
+      withheld: 100,
+      taxCredit: 0,
+      treatment: "auto",
+    };
+    const parsed = parseProfile({
+      ...emptyProfile(),
+      income404: [row, { ...row, label: "STOCKB", treatment: "include" }],
+    });
+    const [a, b] = parsed.income404;
+    expect(a.id).toBe("dup");
+    expect(b.id).not.toBe("dup");
+    expect(b.label).toBe("STOCKB");
+  });
+
   it("strips unknown fields", () => {
     const parsed = parseProfile({ ...emptyProfile(), injected: "<script>" });
     expect("injected" in parsed).toBe(false);

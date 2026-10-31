@@ -48,8 +48,9 @@ export function loadGis(): Promise<GoogleOAuth2> {
     script.async = true;
     script.onload = () => {
       const oauth2 = window.google?.accounts?.oauth2;
-      if (oauth2) resolve(oauth2);
-      else reject(new AuthError("โหลด Google Sign-In ไม่สำเร็จ"));
+      if (oauth2) return resolve(oauth2);
+      scriptPromise = null;
+      reject(new AuthError("โหลด Google Sign-In ไม่สำเร็จ"));
     };
     script.onerror = () => {
       scriptPromise = null;

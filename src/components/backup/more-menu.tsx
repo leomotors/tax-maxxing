@@ -52,7 +52,9 @@ export function MoreMenu({
             <Upload className="mt-0.5 size-4 shrink-0" />
             <span>
               โหลด JSON
-              <span className="block text-xs text-ink-3">รายการเดียว หรือไฟล์สำรองทั้งหมด</span>
+              <span className="block text-xs text-ink-3">
+                ไฟล์รายการเดียวจะเพิ่มเป็นรายการใหม่ · ไฟล์สำรองจะแทนที่ทั้งหมด
+              </span>
             </span>
           </button>
           <button

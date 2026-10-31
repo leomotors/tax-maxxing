@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getLibrary, isStorageBlocked, replaceLibrary } from "@/hooks/use-tax-profile";
+import {
+  getLibrary,
+  getLibraryEpoch,
+  hasUnsavedChanges,
+  isStorageBlocked,
+  replaceLibrary,
+} from "@/hooks/use-tax-profile";
 import { parseBackup, toBackup, type FilingLibrary } from "@/lib/filings";
 import { DriveError, type DriveFile } from "@/lib/google-drive/api";
 import {
@@ -44,6 +50,7 @@ type Status = "loading" | "ready" | "busy" | "unavailable";
 class Stale extends Error {}
 
 const BLOCKED_BACKUP = "ข้อมูลในเครื่องเสียหาย — สำรองไม่ได้ (กู้คืนจาก Drive ได้)";
+const REPLACED_DURING_BACKUP = "ข้อมูลในเครื่องถูกแทนที่ระหว่างสำรอง — กดสำรองอีกครั้ง";
 
 export function useDriveBackup() {
   const [status, setStatus] = useState<Status>(GOOGLE_CLIENT_ID ? "loading" : "unavailable");
@@ -58,6 +65,8 @@ export function useDriveBackup() {
   // Bumped on disconnect so callbacks from an older session can't touch state.
   const generation = useRef(0);
   const busy = useRef(false);
+  // Bumped by every action so a late revoke result can't overwrite a newer message.
+  const action = useRef(0);
   const cancelDialog = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -167,6 +176,7 @@ export function useDriveBackup() {
   async function run(op: (s: DriveSession, gen: number, checkStale: () => void) => Promise<void>) {
     if (busy.current) return;
     busy.current = true;
+    action.current += 1;
     const gen = generation.current;
     const checkStale = () => {
       if (generation.current !== gen) throw new Stale();
@@ -199,19 +209,30 @@ export function useDriveBackup() {
 
   const backup = () => {
     if (isStorageBlocked()) {
+      action.current += 1;
       setError(BLOCKED_BACKUP);
       return;
     }
+    // A library replace after this click makes the baseline deps() reads stale.
+    const epoch = getLibraryEpoch();
     return run(async (s, gen, checkStale) => {
       const result = await runBackup(deps(s, checkStale), () => {
         // Storage can become blocked while the popup/dialogs are open.
         if (isStorageBlocked()) throw new Error(BLOCKED_BACKUP);
+        if (getLibraryEpoch() !== epoch) throw new Error(REPLACED_DURING_BACKUP);
         return JSON.stringify(toBackup(getLibrary()), null, 2);
       });
       checkStale();
       if (result.status === "saved") {
-        setSyncedAt(writeDriveCache(result.meta).syncedAt);
-        setNotice("สำรองไป Google Drive แล้ว");
+        // A baseline is only safe if the uploaded library is also what storage holds.
+        if (getLibraryEpoch() === epoch && !hasUnsavedChanges()) {
+          setSyncedAt(writeDriveCache(result.meta).syncedAt);
+          setNotice("สำรองไป Google Drive แล้ว");
+        } else {
+          clearDriveCache();
+          setSyncedAt(null);
+          setNotice("สำรองไป Google Drive แล้ว แต่ข้อมูลในเครื่องไม่ตรงกับไฟล์บน Drive — ครั้งหน้าจะถามก่อนเขียนทับ");
+        }
       } else if (result.status === "restore-requested") {
         await applyRestore(s, gen, checkStale);
       }
@@ -233,9 +254,10 @@ export function useDriveBackup() {
     setError(null);
     setNotice("ตัดการเชื่อมต่อ Google Drive แล้ว");
     if (requester.current) setStatus("ready");
+    const seq = ++action.current;
     if (token) {
       void requester.current?.revoke(token).then((ok) => {
-        if (!ok) setError("ยกเลิกสิทธิ์กับ Google ไม่สำเร็จ — ถอนสิทธิ์เองได้ที่ myaccount.google.com/permissions");
+        if (!ok && action.current === seq) setError("ยกเลิกสิทธิ์กับ Google ไม่สำเร็จ — ถอนสิทธิ์เองได้ที่ myaccount.google.com/permissions");
       });
     }
   }, []);

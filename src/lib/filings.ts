@@ -7,6 +7,8 @@ export interface FilingLibrary {
   activeId: string;
   /** Always at least one filing. */
   filings: TaxProfile[];
+  /** New on every whole-library replace; lets other tabs drop stale async writes. */
+  rev?: string;
 }
 
 export interface TaxBackup {
@@ -34,7 +36,7 @@ export function normalizeLibrary(lib: FilingLibrary): FilingLibrary {
   const activeId = filings.some((f) => f.id === lib.activeId)
     ? lib.activeId
     : filings[0].id;
-  return { version: 1, activeId, filings };
+  return { version: 1, activeId, filings, ...(lib.rev ? { rev: lib.rev } : {}) };
 }
 
 export function activeFiling(lib: FilingLibrary): TaxProfile {
@@ -97,7 +99,7 @@ export function parseBackup(value: unknown): FilingLibrary {
   if (!isBackupShape(value) || (value as { version?: unknown }).version !== 1) {
     throw new ProfileValidationError("ไฟล์สำรองไม่รองรับ (ต้องการ version: 1)");
   }
-  const raw = (value as { filings: unknown; activeId?: unknown });
+  const raw = (value as { filings: unknown; activeId?: unknown; rev?: unknown });
   if (!Array.isArray(raw.filings) || raw.filings.length === 0) {
     throw new ProfileValidationError("ไฟล์สำรองไม่มีรายการยื่นภาษี");
   }
@@ -113,6 +115,7 @@ export function parseBackup(value: unknown): FilingLibrary {
     version: 1,
     activeId: typeof raw.activeId === "string" ? raw.activeId : "",
     filings,
+    ...(typeof raw.rev === "string" ? { rev: raw.rev } : {}),
   });
 }
 
@@ -129,5 +132,9 @@ export function parseImportJson(text: string): ParsedImport {
     throw new ProfileValidationError("ไฟล์ไม่ใช่ JSON ที่ถูกต้อง");
   }
   if (isBackupShape(value)) return { kind: "backup", library: parseBackup(value) };
+  // The raw-storage download is a bare library (no envelope); legacy defaults would turn it into a blank filing.
+  if (typeof value === "object" && value !== null && "filings" in value) {
+    return { kind: "backup", library: parseBackup({ ...value, app: "tax-maxxing", kind: "backup" }) };
+  }
   return { kind: "profile", profile: parseProfile(value) };
 }

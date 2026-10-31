@@ -23,6 +23,7 @@ import {
   saveLibrary,
   type LoadResult,
 } from "@/lib/storage";
+import { clearDriveCache } from "@/lib/google-drive/sync";
 import { calculateTax, emptyProfile } from "@/lib/tax/calculate";
 import { sanitizeProfile } from "@/lib/tax/sanitize";
 import type { TaxProfile } from "@/lib/tax/types";
@@ -39,10 +40,14 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
-function onStorage(e: StorageEvent) {
+/** Exported for tests; wired to the window `storage` event in subscribe(). */
+export function onStorage(e: Pick<StorageEvent, "key">) {
   // Another tab wrote: last writer wins (documented limitation), but stay in sync.
   if (e.key !== null && e.key !== LIBRARY_KEY) return; // null = clear()
+  const prevRev = clientSnapshot?.library.rev;
   clientSnapshot = loadLibrary();
+  // Another tab replaced the whole library: drop this tab's in-flight writes too.
+  if (e.key === null || clientSnapshot.library.rev !== prevRev) libraryEpoch += 1;
   emit();
 }
 
@@ -109,11 +114,21 @@ export function updateFilingById(
   );
 }
 
-/** Replace every local filing (backup restore / backup import). */
-/** Returns the save error, if the replacement could not be persisted. */
+/** True when the in-memory library differs from storage (last save failed). */
+export function hasUnsavedChanges() {
+  return Boolean(getState().saveError);
+}
+
+/**
+ * Replace every local filing (reset / backup import / restore). Returns the
+ * save error, if any. Drops the Drive baseline: local no longer matches it, so
+ * the next backup must ask (restore writes a fresh one afterwards).
+ */
 export function replaceLibrary(next: FilingLibrary): string | undefined {
   libraryEpoch += 1;
-  commit(next, { force: true });
+  clearDriveCache();
+  // rev travels inside the library write, so other tabs see it even for an identical restore.
+  commit({ ...next, rev: crypto.randomUUID() }, { force: true });
   return getState().saveError;
 }
 

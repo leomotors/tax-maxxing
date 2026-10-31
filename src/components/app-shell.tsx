@@ -23,7 +23,6 @@ import { ResultHero } from "@/components/summary/result-hero";
 import { Button } from "@/components/ui/button";
 import { Badge, Section } from "@/components/ui/section";
 import { getLibraryEpoch, updateFilingById, useTaxProfile } from "@/hooks/use-tax-profile";
-import { clearDriveCache } from "@/lib/google-drive/sync";
 import { addMoney, subMoney } from "@/lib/money";
 import { expense401402 } from "@/lib/tax/calculate";
 import { INCOME_SECTION_META } from "@/lib/tax/constants";
@@ -118,14 +117,9 @@ export function AppShell() {
                 e.target.value = "";
                 if (!file) return;
                 setUploadError(null);
-                upload(file, (count) => {
-                  const ok = confirm(
-                    `ไฟล์นี้เป็นไฟล์สำรอง ${count} รายการ — แทนที่ข้อมูลทั้งหมดในเครื่องนี้?`,
-                  );
-                  // Local data no longer matches what was synced; next Drive backup asks first.
-                  if (ok) clearDriveCache();
-                  return ok;
-                }).catch((err: unknown) =>
+                upload(file, (count) =>
+                  confirm(`ไฟล์นี้เป็นไฟล์สำรอง ${count} รายการ — แทนที่ข้อมูลทั้งหมดในเครื่องนี้?`),
+                ).catch((err: unknown) =>
                   setUploadError(err instanceof Error ? err.message : "โหลดไฟล์ไม่สำเร็จ"),
                 );
               }}
@@ -147,6 +141,7 @@ export function AppShell() {
             <Button
               type="button"
               variant="ghost"
+              disabled={storageBlocked}
               onClick={() => {
                 if (confirm("ล้างข้อมูลของรายการนี้?")) reset();
               }}

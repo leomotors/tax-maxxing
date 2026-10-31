@@ -8,7 +8,13 @@ interface StoredFile extends DriveFile {
 /** In-memory Drive v3 REST stand-in for tests; records every request. */
 export function createFakeDrive() {
   const files = new Map<string, StoredFile>();
-  const requests: { method: string; url: URL; body?: string; contentType?: string }[] = [];
+  const requests: {
+    method: string;
+    url: URL;
+    body?: string;
+    contentType?: string;
+    authorization?: string;
+  }[] = [];
   let nextId = 1;
   let pageSize = 100;
   let status: number | null = null;
@@ -33,7 +39,13 @@ export function createFakeDrive() {
     const method = init.method ?? "GET";
     const body = typeof init.body === "string" ? init.body : undefined;
     const headers = init.headers as Record<string, string> | undefined;
-    requests.push({ method, url, body, contentType: headers?.["Content-Type"] });
+    requests.push({
+      method,
+      url,
+      body,
+      contentType: headers?.["Content-Type"],
+      authorization: headers?.Authorization,
+    });
     onRequest?.(method, url);
     if (status) return new Response("", { status });
 

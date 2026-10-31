@@ -57,6 +57,7 @@ describe("Drive REST client", () => {
     const err = await listBackups(client).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DriveError);
     expect((err as DriveError).status).toBe(401);
+    expect(drive.requests[0].authorization).toBe(`Bearer ${client.token}`);
   });
 
   it("downloads content paired with the version it was read at", async () => {

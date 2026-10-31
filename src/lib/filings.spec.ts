@@ -101,6 +101,16 @@ describe("parseImportJson", () => {
     expect(parseImportJson(JSON.stringify(named("B"))).kind).toBe("profile");
   });
 
+  it("imports the bare raw-storage library as a backup, not a blank filing", () => {
+    const { version, activeId, filings } = createLibrary([named("A"), named("B")]);
+    const parsed = parseImportJson(JSON.stringify({ version, activeId, filings }));
+    expect(parsed.kind).toBe("backup");
+    if (parsed.kind === "backup") expect(parsed.library.filings.map((f) => f.name)).toEqual(["A", "B"]);
+    expect(() => parseImportJson(JSON.stringify({ version: 1, filings: [{ version: 1, income401: 5 }] }))).toThrow(
+      "รายการที่ 1",
+    );
+  });
+
   it("reports invalid JSON in Thai", () => {
     expect(() => parseImportJson("{not json")).toThrow("JSON");
   });

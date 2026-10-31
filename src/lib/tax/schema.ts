@@ -4,6 +4,7 @@ import { emptyProfile } from "@/lib/tax/calculate";
 import { DEFAULT_TAX_YEAR } from "@/lib/tax/constants";
 import { sanitizeProfile } from "@/lib/tax/sanitize";
 import type { TaxProfile } from "@/lib/tax/types";
+import { uid } from "@/lib/utils";
 
 // Lenient on purpose: the old app saved fractional/huge values (and Infinity → null).
 // sanitizeProfile clamps them, so saved data and legacy data both load.
@@ -119,8 +120,23 @@ export function parseProfile(raw: unknown): TaxProfile {
       `ข้อมูลไม่ถูกต้องที่ ${issue?.path.join(".") || "(root)"}`,
     );
   }
+  const data = result.data;
   return sanitizeProfile({
-    ...result.data,
+    ...data,
+    income401: uniqueIds(data.income401),
+    income402: uniqueIds(data.income402),
+    // The engine keys 40(4) treatments by id: duplicates would share one treatment.
+    income404: uniqueIds(data.income404),
+    specialDeductions: uniqueIds(data.specialDeductions),
     taxYear: DEFAULT_TAX_YEAR,
   } as TaxProfile);
+}
+
+function uniqueIds<T extends { id: string }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  return rows.map((row) => {
+    const id = row.id && !seen.has(row.id) ? row.id : uid();
+    seen.add(id);
+    return id === row.id ? row : { ...row, id };
+  });
 }
